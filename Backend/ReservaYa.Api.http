@@ -1,0 +1,6 @@
+@ReservaYa.Api_HostAddress = http://localhost:5135
+
+GET {{ReservaYa.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,8 @@
+{
+  "name": "ReservaYa",
+  "description": "Una plataforma integral para la gestión y reserva de turnos, diseñada para facilitar la interacción entre clientes y prestadores de servicios con asistencia inteligente.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,0 +1,11 @@
+# Ignorar archivos innecesarios en el contenedor Docker
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+.git/
+.gitignore
+README.md

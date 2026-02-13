@@ -1,0 +1,97 @@
+name: Continuous Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: 📦 Restore dependencies
+      run: dotnet restore
+      working-directory: ./Backend
+
+    - name: 🔨 Build
+      run: dotnet build --configuration Release --no-restore
+      working-directory: ./Backend
+
+    - name: 🧪 Run tests
+      run: dotnet test --no-restore --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      working-directory: ./Backend
+      continue-on-error: true
+
+    - name: 📊 Test Report
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Backend Test Results
+        path: Backend/**/test-results.trx
+        reporter: dotnet-trx
+        fail-on-error: false
+
+  lint-frontend:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: Frontend/package-lock.json
+
+    - name: 📦 Install dependencies
+      run: npm ci
+      working-directory: ./Frontend
+
+    - name: 🔍 Type check
+      run: npx tsc --noEmit
+      working-directory: ./Frontend
+      continue-on-error: true
+
+    - name: 🔨 Build check
+      run: npm run build
+      working-directory: ./Frontend
+      env:
+        VITE_API_BASE_URL: https://localhost:5001/api
+        VITE_GEMINI_API_KEY: test-key
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔐 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+
+    - name: 📊 Upload results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

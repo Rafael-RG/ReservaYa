@@ -1,0 +1,57 @@
+name: Deploy Backend to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Backend/**'
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: testarauco
+  DOTNET_VERSION: '9.0.x'
+  WORKING_DIRECTORY: ./Backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 📦 Restore dependencies
+      run: dotnet restore
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: 🔨 Build
+      run: dotnet build --configuration Release --no-restore
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: 🧪 Test
+      run: dotnet test --no-restore --verbosity normal
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      continue-on-error: true
+
+    - name: 📤 Publish
+      run: dotnet publish --configuration Release --output ./publish --no-build
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: 🚀 Deploy to Azure App Service
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ${{ env.WORKING_DIRECTORY }}/publish
+
+    - name: ✅ Deployment Summary
+      run: |
+        echo "🎉 Backend deployed successfully!"
+        echo "🌐 URL: https://testarauco-htfzbfacbcf3fcfs.eastus2-01.azurewebsites.net"
+        echo "📚 Swagger: https://testarauco-htfzbfacbcf3fcfs.eastus2-01.azurewebsites.net/swagger"

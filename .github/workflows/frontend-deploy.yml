@@ -1,0 +1,74 @@
+name: Deploy Frontend to Azure Static Web Apps
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Frontend/**'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+    paths:
+      - 'Frontend/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        lfs: false
+
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: Frontend/package-lock.json
+
+    - name: 📦 Install dependencies
+      run: npm ci
+      working-directory: ./Frontend
+
+    - name: 🔨 Build
+      run: npm run build
+      working-directory: ./Frontend
+      env:
+        VITE_API_BASE_URL: https://testarauco-htfzbfacbcf3fcfs.eastus2-01.azurewebsites.net/api
+        VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+
+    - name: 🚀 Deploy to Azure Static Web Apps
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        action: "upload"
+        app_location: "/Frontend"
+        api_location: ""
+        output_location: "dist"
+        skip_app_build: true
+
+    - name: ✅ Deployment Summary
+      run: |
+        echo "🎉 Frontend deployed successfully!"
+        echo "🌐 Your Static Web App is ready"
+        echo "📱 Access your application at your Static Web App URL"
+
+  close-pull-request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request
+    steps:
+    - name: Close Pull Request
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        action: "close"
