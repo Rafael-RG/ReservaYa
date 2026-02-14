@@ -40,7 +40,7 @@ jobs:
       continue-on-error: true
 
     - name: 📤 Publish
-      run: dotnet publish --configuration Release --output ./publish --no-build
+      run: dotnet publish --configuration Release --output ./publish --no-build --self-contained true --runtime win-x64
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🚀 Deploy to Azure App Service
