@@ -27,11 +27,11 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: 📦 Restore dependencies
-      run: dotnet restore
+      run: dotnet restore --runtime win-x64
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🔨 Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build --configuration Release --runtime win-x64 --no-restore
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🧪 Test
