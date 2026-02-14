@@ -123,16 +123,36 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<User>> UpdateUser(string id, [FromBody] User user)
+    public async Task<ActionResult<User>> UpdateUser(string id, [FromBody] UpdateUserRequest request)
     {
         try
         {
-            if (id != user.Id)
+            if (id != request.Id)
             {
                 return BadRequest(ErrorMessages.IdMismatch);
             }
 
-            var updatedUser = await _userService.UpdateUserAsync(user);
+            if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
+            {
+                return BadRequest("Invalid role");
+            }
+
+            // Get existing user from database to preserve Azure Table Storage properties
+            var existingUser = await _userService.GetByIdAsync(id, userRole);
+            if (existingUser == null)
+            {
+                return NotFound("User not found");
+            }
+
+            // Update only business properties
+            existingUser.Name = request.Name;
+            existingUser.Email = request.Email;
+            if (request.Avatar != null)
+            {
+                existingUser.Avatar = request.Avatar;
+            }
+
+            var updatedUser = await _userService.UpdateUserAsync(existingUser);
             return Ok(updatedUser);
         }
         catch (Exception ex)
@@ -164,3 +184,5 @@ public class UsersController : ControllerBase
 }
 
 public record CreateUserRequest(string Email, string Name, string Role, string? Avatar);
+
+public record UpdateUserRequest(string Id, string Email, string Name, string Role, string? Avatar);

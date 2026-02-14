@@ -4,11 +4,12 @@ import { UserRole } from '../types';
 
 interface NavbarProps {
   user: any;
+  providerProfile?: any;
   onLogout: () => void;
   onNavigate: (view: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onNavigate }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, providerProfile, onLogout, onNavigate }) => {
   return (
     <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -4,7 +4,7 @@ import { Staff, Service, ProviderProfile, ServiceType } from './types';
 
 export const MOCK_PROVIDERS: ProviderProfile[] = [
   {
-    id: 'p1',
+    id: '6fb1ebaf-261e-411d-bf04-59fcb1609008',
     name: 'Estética Alpha',
     slug: 'estetica-alpha',
     description: 'Transformamos tu estilo con los mejores profesionales en peluquería y barbería. Más de 10 años creando tendencias en el corazón de la ciudad.',
@@ -53,8 +53,8 @@ export const MOCK_PROVIDERS: ProviderProfile[] = [
 ];
 
 export const MOCK_STAFF: Staff[] = [
-  { id: 'st1', providerId: 'p1', name: 'Alex Rivera', role: 'Estilista Senior', avatar: 'https://i.pravatar.cc/150?u=st1' },
-  { id: 'st2', providerId: 'p1', name: 'Maria Luz', role: 'Colorista Experta', avatar: 'https://i.pravatar.cc/150?u=st2' },
+  { id: 'st1', providerId: '6fb1ebaf-261e-411d-bf04-59fcb1609008', name: 'Alex Rivera', role: 'Estilista Senior', avatar: 'https://i.pravatar.cc/150?u=st1' },
+  { id: 'st2', providerId: '6fb1ebaf-261e-411d-bf04-59fcb1609008', name: 'Maria Luz', role: 'Colorista Experta', avatar: 'https://i.pravatar.cc/150?u=st2' },
   { id: 'st4', providerId: 'p2', name: 'Dr. Lucas', role: 'Kinesiólogo', avatar: 'https://i.pravatar.cc/150?u=st4' },
   { id: 'st5', providerId: 'p3', name: 'Indra Devi', role: 'Master Yogi', avatar: 'https://i.pravatar.cc/150?u=st5' }
 ];
@@ -62,7 +62,7 @@ export const MOCK_STAFF: Staff[] = [
 export const MOCK_SERVICES: Service[] = [
   {
     id: 's1',
-    providerId: 'p1',
+    providerId: '6fb1ebaf-261e-411d-bf04-59fcb1609008',
     name: 'Corte de Cabello Premium',
     description: 'Corte clásico o moderno con asesoramiento de imagen profesional e hidratación profunda.',
     price: 2500,
@@ -74,7 +74,7 @@ export const MOCK_SERVICES: Service[] = [
   },
   {
     id: 's2',
-    providerId: 'p1',
+    providerId: '6fb1ebaf-261e-411d-bf04-59fcb1609008',
     name: 'Barba & Toalla Caliente',
     description: 'Ritual tradicional de afeitado con vapor y aceites esenciales.',
     price: 1500,
@@ -108,7 +108,7 @@ export const DEMO_CLIENT = {
 };
 
 export const DEMO_PROVIDER = {
-  id: 'p1',
+  id: '6fb1ebaf-261e-411d-bf04-59fcb1609008',
   email: 'proveedor@demo.com',
   name: 'Estética Alpha',
   role: 'PROVIDER' as any,

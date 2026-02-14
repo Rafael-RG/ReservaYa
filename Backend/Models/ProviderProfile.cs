@@ -30,9 +30,9 @@ public class ProviderProfile : ITableEntity
     }
 
     public ProviderProfile(string name, string slug, string description, string heroImage, 
-                          string category, string themeColor)
+                          string category, string themeColor, string? id = null)
     {
-        Id = Guid.NewGuid().ToString();
+        Id = id ?? Guid.NewGuid().ToString();
         Name = name;
         Slug = slug;
         Description = description;

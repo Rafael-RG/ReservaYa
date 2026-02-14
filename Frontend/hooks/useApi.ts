@@ -57,7 +57,28 @@ export const useUsers = () => {
     }
   };
 
-  return { users, loading, error, fetchUsers, fetchUsersByRole, createUser };
+  const updateUser = async (id: string, userData: User) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedUser = await api.users.update(id, {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        avatar: userData.avatar
+      });
+      setUsers(prev => prev.map(u => u.id === id ? updatedUser : u));
+      return updatedUser;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating user');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { users, loading, error, fetchUsers, fetchUsersByRole, createUser, updateUser };
 };
 
 // ============================================
@@ -337,5 +358,60 @@ export const useProviderProfiles = () => {
     }
   };
 
-  return { profiles, loading, error, fetchProfiles, fetchProfileBySlug };
+  const updateProfile = async (id: string, data: {
+    name: string;
+    description?: string;
+    heroImage?: string;
+    category?: string;
+    themeColor?: string;
+    address?: string;
+    phone?: string;
+    instagram?: string;
+    workingHoursJson?: string;
+  }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedProfile = await api.providerProfiles.update(id, {
+        id,
+        ...data
+      });
+      setProfiles(prev => prev.map(p => p.id === id ? updatedProfile : p));
+      return updatedProfile;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating profile');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createProfile = async (profileData: {
+    name: string;
+    slug: string;
+    description: string;
+    heroImage: string;
+    category: string;
+    themeColor: string;
+    address?: string;
+    phone?: string;
+    instagram?: string;
+    workingHoursJson?: string;
+    id?: string;
+  }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const newProfile = await api.providerProfiles.create(profileData);
+      setProfiles(prev => [...prev, newProfile]);
+      return newProfile;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error creating profile');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { profiles, loading, error, fetchProfiles, fetchProfileBySlug, updateProfile, createProfile };
 };

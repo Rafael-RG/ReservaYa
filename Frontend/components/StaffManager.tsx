@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Staff } from '../types';
 import { staffApi } from '../services/apiService';
+import { ConfirmDialog } from './ConfirmDialog';
+import { useToast } from '../hooks/useToast';
+import { ToastContainer } from './Toast';
 
 interface StaffManagerProps {
   providerId: string;
 }
 
 export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
+  const { toasts, removeToast, success, error: showError, warning } = useToast();
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; staff: Staff | null }>({ show: false, staff: null });
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -29,7 +34,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
       setStaffList(data);
     } catch (error) {
       console.error('Error al cargar personal:', error);
-      alert('❌ Error al cargar el personal');
+      showError('Error al cargar el personal');
     } finally {
       setLoading(false);
     }
@@ -44,7 +49,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
     e.preventDefault();
     
     if (!formData.name.trim() || !formData.role.trim()) {
-      alert('⚠️ Por favor completa los campos obligatorios');
+      warning('Por favor completa los campos obligatorios');
       return;
     }
 
@@ -79,7 +84,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
       loadStaff();
     } catch (error) {
       console.error('Error al guardar personal:', error);
-      alert('❌ Error al guardar el personal');
+      showError('Error al guardar el personal');
     } finally {
       setLoading(false);
     }
@@ -95,21 +100,24 @@ export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
     setShowForm(true);
   };
 
-  const handleDelete = async (staff: Staff) => {
-    if (!window.confirm(`¿Estás seguro de eliminar a ${staff.name}?`)) {
-      return;
-    }
+  const handleDelete = (staff: Staff) => {
+    setConfirmDelete({ show: true, staff });
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDelete.staff) return;
 
     try {
       setLoading(true);
-      await staffApi.delete(staff.id, providerId);
-      alert('✅ Personal eliminado exitosamente');
+      await staffApi.delete(confirmDelete.staff.id, providerId);
+      success('Personal eliminado exitosamente');
       loadStaff();
     } catch (error) {
       console.error('Error al eliminar personal:', error);
-      alert('❌ Error al eliminar el personal');
+      showError('Error al eliminar el personal');
     } finally {
       setLoading(false);
+      setConfirmDelete({ show: false, staff: null });
     }
   };
 
@@ -276,6 +284,21 @@ export const StaffManager: React.FC<StaffManagerProps> = ({ providerId }) => {
           ))}
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDelete.show}
+        title="Eliminar Personal"
+        message={`¿Estás seguro de eliminar a ${confirmDelete.staff?.name}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        type="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDelete({ show: false, staff: null })}
+      />
     </div>
   );
 };

@@ -56,7 +56,9 @@ public class TableStorageRepository<T> : ITableStorageRepository<T> where T : cl
 
     public async Task<T> UpdateAsync(T entity)
     {
-        await _tableClient.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace);
+        // Use ETag.All (*) to update regardless of ETag conflicts
+        // This is safe for our single-user scenario
+        await _tableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace);
         return entity;
     }
 

@@ -47,12 +47,20 @@ builder.Services.AddScoped<ITableStorageRepository<Staff>>(sp =>
 builder.Services.AddScoped<ITableStorageRepository<ProviderProfile>>(sp =>
     new TableStorageRepository<ProviderProfile>(sp.GetRequiredService<TableServiceClient>(), "ProviderProfiles"));
 
+builder.Services.AddScoped<ITableStorageRepository<WeeklySchedule>>(sp =>
+    new TableStorageRepository<WeeklySchedule>(sp.GetRequiredService<TableServiceClient>(), "WeeklySchedules"));
+
+builder.Services.AddScoped<ITableStorageRepository<BlockedDate>>(sp =>
+    new TableStorageRepository<BlockedDate>(sp.GetRequiredService<TableServiceClient>(), "BlockedDates"));
+
 // Register business services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IServiceService, ServiceService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IProviderProfileService, ProviderProfileService>();
+builder.Services.AddScoped<IWeeklyScheduleService, WeeklyScheduleService>();
+builder.Services.AddScoped<IBlockedDateService, BlockedDateService>();
 
 var app = builder.Build();
 

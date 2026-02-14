@@ -83,7 +83,8 @@ public class ProviderProfilesController : ControllerBase
                 request.Description,
                 request.HeroImage,
                 request.Category,
-                request.ThemeColor)
+                request.ThemeColor,
+                request.Id)
             {
                 Address = request.Address,
                 Phone = request.Phone,
@@ -102,16 +103,46 @@ public class ProviderProfilesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<ProviderProfile>> UpdateProfile(string id, [FromBody] ProviderProfile profile)
+    public async Task<ActionResult<ProviderProfile>> UpdateProfile(string id, [FromBody] UpdateProviderProfileRequest request)
     {
         try
         {
-            if (id != profile.Id)
+            _logger.LogInformation("📝 Actualizando perfil {ProfileId} con datos: Name={Name}, Phone={Phone}, Address={Address}", 
+                id, request.Name, request.Phone, request.Address);
+
+            if (id != request.Id)
             {
                 return BadRequest(ErrorMessages.IdMismatch);
             }
 
-            var updatedProfile = await _profileService.UpdateProfileAsync(profile);
+            // Fetch existing profile first to preserve Azure Table properties
+            var existingProfile = await _profileService.GetByIdAsync(id);
+            if (existingProfile == null)
+            {
+                _logger.LogWarning("❌ Perfil {ProfileId} no encontrado", id);
+                return NotFound();
+            }
+
+            _logger.LogInformation("✅ Perfil existente encontrado: Name={Name}, Phone={Phone}, Address={Address}", 
+                existingProfile.Name, existingProfile.Phone, existingProfile.Address);
+
+            // Update only the fields we want to change
+            existingProfile.Name = request.Name;
+            existingProfile.Description = request.Description ?? existingProfile.Description;
+            existingProfile.HeroImage = request.HeroImage ?? existingProfile.HeroImage;
+            existingProfile.Category = request.Category ?? existingProfile.Category;
+            existingProfile.ThemeColor = request.ThemeColor ?? existingProfile.ThemeColor;
+            existingProfile.Address = request.Address;
+            existingProfile.Phone = request.Phone;
+            existingProfile.Instagram = request.Instagram;
+            existingProfile.WorkingHoursJson = request.WorkingHoursJson;
+
+            _logger.LogInformation("💾 Guardando perfil actualizado: Name={Name}, Phone={Phone}, Address={Address}", 
+                existingProfile.Name, existingProfile.Phone, existingProfile.Address);
+
+            var updatedProfile = await _profileService.UpdateProfileAsync(existingProfile);
+            
+            _logger.LogInformation("✅ Perfil {ProfileId} actualizado exitosamente", id);
             return Ok(updatedProfile);
         }
         catch (Exception ex)
@@ -144,6 +175,19 @@ public record CreateProviderProfileRequest(
     string HeroImage,
     string Category,
     string ThemeColor,
+    string? Address,
+    string? Phone,
+    string? Instagram,
+    string? WorkingHoursJson,
+    string? Id);
+
+public record UpdateProviderProfileRequest(
+    string Id,
+    string Name,
+    string? Description,
+    string? HeroImage,
+    string? Category,
+    string? ThemeColor,
     string? Address,
     string? Phone,
     string? Instagram,

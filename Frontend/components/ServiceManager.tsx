@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ServiceType, Staff, Service } from '../types';
 import { useServices } from '../hooks/useApi';
 import { staffApi } from '../services/apiService';
+import { ConfirmDialog } from './ConfirmDialog';
+import { useToast } from '../hooks/useToast';
+import { ToastContainer } from './Toast';
 
 interface ServiceManagerProps {
   providerId: string;
@@ -9,10 +12,12 @@ interface ServiceManagerProps {
 
 export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) => {
   const { services, loading, error, fetchServices, createService, updateService, deleteService } = useServices();
+  const { toasts, removeToast, success, error: showError } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; service: Service | null }>({ show: false, service: null });
   
   // Formulario de creación
   const [formData, setFormData] = useState({
@@ -63,20 +68,22 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) =>
     setShowCreateForm(true);
   };
 
-  const handleDelete = async (service: Service) => {
-    const confirmed = confirm(
-      `¿Estás seguro de eliminar "${service.name}"?\n\nEsta acción no se puede deshacer.`
-    );
-    
-    if (!confirmed) return;
+  const handleDelete = (service: Service) => {
+    setConfirmDelete({ show: true, service });
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDelete.service) return;
 
     try {
-      await deleteService(service.id, providerId);
-      alert('✅ Servicio eliminado exitosamente!');
+      await deleteService(confirmDelete.service.id, providerId);
+      success('Servicio eliminado exitosamente!');
       await fetchServices();
     } catch (err) {
       console.error('Error deleting service:', err);
-      alert('❌ Error al eliminar el servicio. Intenta nuevamente.');
+      showError('Error al eliminar el servicio. Intenta nuevamente.');
+    } finally {
+      setConfirmDelete({ show: false, service: null });
     }
   };
 
@@ -117,7 +124,7 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) =>
           maxCapacity: formData.maxCapacity,
           assignedStaffIds: formData.assignedStaffIds
         });
-        alert('✅ Servicio actualizado exitosamente!');
+        success('Servicio actualizado exitosamente!');
       } else {
         // Crear nuevo servicio
         await createService({
@@ -133,7 +140,7 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) =>
           maxCapacity: formData.maxCapacity,
           assignedStaffIds: formData.assignedStaffIds
         });
-        alert('✅ Servicio creado exitosamente!');
+        success('Servicio creado exitosamente!');
       }
 
       // Limpiar formulario y cerrar
@@ -156,7 +163,7 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) =>
       await fetchServices();
     } catch (err) {
       console.error('Error saving service:', err);
-      alert(`❌ Error al ${editingService ? 'actualizar' : 'crear'} el servicio. Intenta nuevamente.`);
+      showError(`Error al ${editingService ? 'actualizar' : 'crear'} el servicio. Intenta nuevamente.`);
     } finally {
       setCreating(false);
     }
@@ -531,6 +538,21 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({ providerId }) =>
           </div>
         )}
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDelete.show}
+        title="Eliminar Servicio"
+        message={`¿Estás seguro de eliminar "${confirmDelete.service?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        type="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDelete({ show: false, service: null })}
+      />
     </div>
   );
 };

@@ -79,9 +79,39 @@ export interface Booking {
   notes?: string;
   location?: string;
   guests?: number;
+  // Información del cliente (populated from backend)
+  clientName?: string;
+  clientEmail?: string;
+  clientAvatar?: string;
 }
 
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+}
+
+export interface WeeklySchedule {
+  id: string;
+  providerId: string;
+  mondayEnabled: boolean;
+  mondayHours?: string;
+  tuesdayEnabled: boolean;
+  tuesdayHours?: string;
+  wednesdayEnabled: boolean;
+  wednesdayHours?: string;
+  thursdayEnabled: boolean;
+  thursdayHours?: string;
+  fridayEnabled: boolean;
+  fridayHours?: string;
+  saturdayEnabled: boolean;
+  saturdayHours?: string;
+  sundayEnabled: boolean;
+  sundayHours?: string;
+}
+
+export interface BlockedDate {
+  id: string;
+  providerId: string;
+  date: string; // YYYY-MM-DD
+  reason?: string;
 }

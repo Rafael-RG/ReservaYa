@@ -55,10 +55,10 @@ export const usersApi = {
       body: JSON.stringify(data),
     }),
   
-  update: (id: string, user: User) =>
+  update: (id: string, data: { id: string; email: string; name: string; role: string; avatar?: string }) =>
     apiCall<User>(`/users/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(user),
+      body: JSON.stringify(data),
     }),
   
   delete: (id: string, role: UserRole) =>
@@ -259,20 +259,111 @@ export const providerProfilesApi = {
     phone?: string;
     instagram?: string;
     workingHoursJson?: string;
+    id?: string;
   }) =>
     apiCall<ProviderProfile>('/providerprofiles', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  update: (id: string, profile: ProviderProfile) =>
+  update: (id: string, data: {
+    id: string;
+    name: string;
+    description?: string;
+    heroImage?: string;
+    category?: string;
+    themeColor?: string;
+    address?: string;
+    phone?: string;
+    instagram?: string;
+    workingHoursJson?: string;
+  }) =>
     apiCall<ProviderProfile>(`/providerprofiles/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(profile),
+      body: JSON.stringify(data),
     }),
   
   delete: (id: string) =>
     apiCall<void>(`/providerprofiles/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// ============================================
+// WEEKLY SCHEDULES API
+// ============================================
+
+export const weeklySchedulesApi = {
+  getAll: () => apiCall<any[]>('/weeklyschedules'),
+  
+  getByProvider: (providerId: string) =>
+    apiCall<any>(`/weeklyschedules/by-provider/${providerId}`),
+  
+  create: (data: {
+    providerId: string;
+    mondayEnabled: boolean;
+    mondayHours?: string;
+    tuesdayEnabled: boolean;
+    tuesdayHours?: string;
+    wednesdayEnabled: boolean;
+    wednesdayHours?: string;
+    thursdayEnabled: boolean;
+    thursdayHours?: string;
+    fridayEnabled: boolean;
+    fridayHours?: string;
+    saturdayEnabled: boolean;
+    saturdayHours?: string;
+    sundayEnabled: boolean;
+    sundayHours?: string;
+  }) =>
+    apiCall<any>('/weeklyschedules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  update: (id: string, schedule: any) =>
+    apiCall<any>(`/weeklyschedules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(schedule),
+    }),
+  
+  delete: (id: string, providerId: string) =>
+    apiCall<void>(`/weeklyschedules/${id}?providerId=${providerId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// ============================================
+// BLOCKED DATES API
+// ============================================
+
+export const blockedDatesApi = {
+  getAll: () => apiCall<any[]>('/blockeddates'),
+  
+  getById: (id: string, providerId: string) =>
+    apiCall<any>(`/blockeddates/${id}?providerId=${providerId}`),
+  
+  getByProvider: (providerId: string) =>
+    apiCall<any[]>(`/blockeddates/by-provider/${providerId}`),
+  
+  create: (data: {
+    providerId: string;
+    date: string;
+    reason?: string;
+  }) =>
+    apiCall<any>('/blockeddates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  update: (id: string, blockedDate: any) =>
+    apiCall<any>(`/blockeddates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(blockedDate),
+    }),
+  
+  delete: (id: string, providerId: string) =>
+    apiCall<void>(`/blockeddates/${id}?providerId=${providerId}`, {
       method: 'DELETE',
     }),
 };
@@ -287,6 +378,8 @@ export const api = {
   bookings: bookingsApi,
   staff: staffApi,
   providerProfiles: providerProfilesApi,
+  weeklySchedules: weeklySchedulesApi,
+  blockedDates: blockedDatesApi,
 };
 
 export default api;
