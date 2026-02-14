@@ -1,0 +1,5 @@
+{
+  "platform": {
+    "apiRuntime": "dotnetcore:9.0"
+  }
+}
