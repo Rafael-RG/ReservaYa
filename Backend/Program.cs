@@ -16,17 +16,36 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://localhost:5173", 
-            "http://localhost:3000")
+            "http://localhost:3000",
+            "https://delightful-tree-089c2700f.3.azurestaticapps.net")
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
 // Configure Azure Table Storage
 Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
-var storageConnectionString = builder.Configuration.GetConnectionString("AzureTableStorage") 
-    ?? "UseDevelopmentStorage=true";
-Console.WriteLine($"Connection String: {(string.IsNullOrEmpty(storageConnectionString) ? "EMPTY!" : "OK - " + storageConnectionString.Substring(0, Math.Min(50, storageConnectionString.Length)))}");
+var storageConnectionString = builder.Configuration.GetConnectionString("AzureTableStorage");
+
+if (string.IsNullOrEmpty(storageConnectionString))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        Console.WriteLine("⚠️ Using Development Storage Emulator");
+        storageConnectionString = "UseDevelopmentStorage=true";
+    }
+    else
+    {
+        Console.WriteLine("❌ ERROR: AzureTableStorage connection string is not configured!");
+        Console.WriteLine("❌ Configure it in Azure App Service -> Configuration -> Connection strings");
+        throw new InvalidOperationException("AzureTableStorage connection string is required in production");
+    }
+}
+else
+{
+    Console.WriteLine($"✅ Connection String configured: {storageConnectionString.Substring(0, Math.Min(50, storageConnectionString.Length))}...");
+}
 
 var tableServiceClient = new TableServiceClient(storageConnectionString);
 builder.Services.AddSingleton(tableServiceClient);
