@@ -39,6 +39,12 @@ export interface Service {
   requiresStaffSelection?: boolean;
   type: ServiceType;
   maxCapacity?: number;
+  assignedStaffIds?: string[]; // IDs del personal asignado
+  // Azure Table Storage properties
+  partitionKey?: string;
+  rowKey?: string;
+  timestamp?: string;
+  eTag?: string;
 }
 
 export interface WorkingHour {

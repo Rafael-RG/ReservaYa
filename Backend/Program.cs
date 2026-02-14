@@ -16,18 +16,17 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://localhost:5173", 
-            "http://localhost:3000",
-            "https://*.azurestaticapps.net",
-            "https://*.azurewebsites.net")
+            "http://localhost:3000")
             .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
+            .AllowAnyHeader();
     });
 });
 
 // Configure Azure Table Storage
+Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
 var storageConnectionString = builder.Configuration.GetConnectionString("AzureTableStorage") 
     ?? "UseDevelopmentStorage=true";
+Console.WriteLine($"Connection String: {(string.IsNullOrEmpty(storageConnectionString) ? "EMPTY!" : "OK - " + storageConnectionString.Substring(0, Math.Min(50, storageConnectionString.Length)))}");
 
 var tableServiceClient = new TableServiceClient(storageConnectionString);
 builder.Services.AddSingleton(tableServiceClient);

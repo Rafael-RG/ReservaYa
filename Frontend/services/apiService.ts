@@ -71,16 +71,46 @@ export const usersApi = {
 // SERVICES API
 // ============================================
 
+// Helper para transformar Service del backend al frontend
+const transformServiceFromBackend = (service: any): Service => {
+  return {
+    ...service,
+    assignedStaffIds: service.assignedStaffIds 
+      ? service.assignedStaffIds.split(',').filter((id: string) => id.trim()) 
+      : []
+  };
+};
+
+// Helper para transformar Service del frontend al backend
+const transformServiceToBackend = (service: Service): any => {
+  // Mantener todas las propiedades originales y solo convertir assignedStaffIds
+  const { assignedStaffIds, ...rest } = service;
+  
+  return {
+    ...rest,
+    assignedStaffIds: assignedStaffIds && assignedStaffIds.length > 0 
+      ? assignedStaffIds.join(',') 
+      : null
+  };
+};
+
 export const servicesApi = {
-  getAll: () => apiCall<Service[]>('/services'),
+  getAll: async () => {
+    const services = await apiCall<any[]>('/services');
+    return services.map(transformServiceFromBackend);
+  },
   
-  getById: (id: string, providerId: string) =>
-    apiCall<Service>(`/services/${id}?providerId=${providerId}`),
+  getById: async (id: string, providerId: string) => {
+    const service = await apiCall<any>(`/services/${id}?providerId=${providerId}`);
+    return transformServiceFromBackend(service);
+  },
   
-  getByProvider: (providerId: string) =>
-    apiCall<Service[]>(`/services/by-provider/${providerId}`),
+  getByProvider: async (providerId: string) => {
+    const services = await apiCall<any[]>(`/services/by-provider/${providerId}`);
+    return services.map(transformServiceFromBackend);
+  },
   
-  create: (data: {
+  create: async (data: {
     providerId: string;
     name: string;
     description: string;
@@ -91,17 +121,23 @@ export const servicesApi = {
     image?: string;
     requiresStaffSelection: boolean;
     maxCapacity?: number;
-  }) =>
-    apiCall<Service>('/services', {
+    assignedStaffIds?: string[];
+  }) => {
+    const service = await apiCall<any>('/services', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    });
+    return transformServiceFromBackend(service);
+  },
   
-  update: (id: string, service: Service) =>
-    apiCall<Service>(`/services/${id}`, {
+  update: async (id: string, service: Service) => {
+    const serviceData = transformServiceToBackend(service);
+    const updatedService = await apiCall<any>(`/services/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(service),
-    }),
+      body: JSON.stringify(serviceData),
+    });
+    return transformServiceFromBackend(updatedService);
+  },
   
   delete: (id: string, providerId: string) =>
     apiCall<void>(`/services/${id}?providerId=${providerId}`, {

@@ -106,6 +106,7 @@ export const useServices = () => {
     image?: string;
     requiresStaffSelection: boolean;
     maxCapacity?: number;
+    assignedStaffIds?: string[];
   }) => {
     setLoading(true);
     setError(null);
@@ -121,7 +122,36 @@ export const useServices = () => {
     }
   };
 
-  return { services, loading, error, fetchServices, fetchServicesByProvider, createService };
+  const updateService = async (id: string, serviceData: Service) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedService = await api.services.update(id, serviceData);
+      setServices(prev => prev.map(s => s.id === id ? updatedService : s));
+      return updatedService;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating service');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteService = async (id: string, providerId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.services.delete(id, providerId);
+      setServices(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error deleting service');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { services, loading, error, fetchServices, fetchServicesByProvider, createService, updateService, deleteService };
 };
 
 // ============================================

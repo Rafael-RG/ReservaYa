@@ -88,7 +88,10 @@ public class ServicesController : ControllerBase
             {
                 Image = request.Image,
                 RequiresStaffSelection = request.RequiresStaffSelection,
-                MaxCapacity = request.MaxCapacity
+                MaxCapacity = request.MaxCapacity,
+                AssignedStaffIds = request.AssignedStaffIds != null && request.AssignedStaffIds.Count > 0 
+                    ? string.Join(",", request.AssignedStaffIds) 
+                    : null
             };
 
             var createdService = await _serviceService.CreateServiceAsync(service);
@@ -149,4 +152,5 @@ public record CreateServiceRequest(
     string Type,
     string? Image,
     bool RequiresStaffSelection,
-    int? MaxCapacity);
+    int? MaxCapacity,
+    List<string>? AssignedStaffIds);

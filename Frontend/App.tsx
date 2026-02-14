@@ -5,12 +5,15 @@ import { MOCK_SERVICES, DEMO_CLIENT, DEMO_PROVIDER, MOCK_PROVIDERS } from './con
 import { Navbar } from './components/Navbar';
 import { Assistant } from './components/Assistant';
 import { BookingModal } from './components/BookingModal';
+import { ServiceManager } from './components/ServiceManager';
+import { StaffManager } from './components/StaffManager';
 import { useServices, useBookings, useProviderProfiles } from './hooks/useApi';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<string>('home'); 
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'reservas' | 'personal' | 'servicios' | 'suscripcion'>('reservas');
   
   // API Integration
   const { 
@@ -248,70 +251,211 @@ const App: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-12">
-            <section className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-sm border border-slate-100">
-              <h2 className="text-3xl font-black mb-10 flex items-center text-slate-900 tracking-tight">
-                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            {/* Tabs para proveedores */}
+            {!isClient && (
+              <div className="bg-white rounded-[3.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                {/* Tabs Header */}
+                <div className="flex border-b border-slate-100 overflow-x-auto">
+                  <button
+                    onClick={() => setActiveTab('reservas')}
+                    className={`flex-1 px-8 py-6 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-3 ${
+                      activeTab === 'reservas'
+                        ? 'bg-orange-50 text-orange-600 border-b-4 border-orange-600'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>📅 Reservas</span>
+                    {activeBookings.length > 0 && (
+                      <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                        activeTab === 'reservas' 
+                          ? 'bg-orange-600 text-white' 
+                          : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {activeBookings.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('personal')}
+                    className={`flex-1 px-8 py-6 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-3 ${
+                      activeTab === 'personal'
+                        ? 'bg-orange-50 text-orange-600 border-b-4 border-orange-600'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>👥 Personal</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('servicios')}
+                    className={`flex-1 px-8 py-6 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-3 ${
+                      activeTab === 'servicios'
+                        ? 'bg-orange-50 text-orange-600 border-b-4 border-orange-600'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>🛎️ Servicios</span>
+                    {(() => {
+                      const myServicesCount = services.filter(s => s.providerId === user.id).length;
+                      return myServicesCount > 0 && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                          activeTab === 'servicios' 
+                            ? 'bg-orange-600 text-white' 
+                            : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {myServicesCount}
+                        </span>
+                      );
+                    })()}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('suscripcion')}
+                    className={`flex-1 px-8 py-6 font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-3 ${
+                      activeTab === 'suscripcion'
+                        ? 'bg-orange-50 text-orange-600 border-b-4 border-orange-600'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>💳 Suscripción</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                      activeTab === 'suscripcion' 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      PRO
+                    </span>
+                  </button>
                 </div>
-                {isClient ? 'Mis Turnos' : 'Agenda de Reservas'}
-              </h2>
-              
-              <div className="space-y-6">
-                {activeBookings.length > 0 ? (
-                  activeBookings.map(b => {
-                    const s = displayServices.find(srv => srv.id === b.serviceId);
-                    return (
-                      <div key={b.id} className="flex flex-col sm:flex-row sm:items-center p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 group transition-all hover:bg-white hover:border-orange-200">
-                        <div className="w-20 h-20 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-slate-100 mr-8 text-orange-600 shrink-0 shadow-sm">
-                           <span className="text-3xl font-black leading-none">{new Date(b.date).getDate() + 1}</span>
-                           <span className="uppercase text-xs font-black tracking-widest">{new Date(b.date).toLocaleString('es', {month: 'short'})}</span>
+
+                {/* Tab Content */}
+                <div className="p-10 md:p-14">
+                  {/* Tab: Reservas */}
+                  {activeTab === 'reservas' && (
+                    <div>
+                      <h2 className="text-3xl font-black mb-10 flex items-center text-slate-900 tracking-tight">
+                        <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         </div>
-                        <div className="flex-grow mt-6 sm:mt-0">
-                          <h4 className="font-black text-slate-900 text-2xl mb-1">{s?.name || 'Servicio Especial'}</h4>
-                          <p className="text-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            {b.time} hs
-                          </p>
+                        Agenda de Reservas
+                      </h2>
+                      
+                      <div className="space-y-6">
+                        {activeBookings.length > 0 ? (
+                          activeBookings.map(b => {
+                            const s = displayServices.find(srv => srv.id === b.serviceId);
+                            return (
+                              <div key={b.id} className="flex flex-col sm:flex-row sm:items-center p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 group transition-all hover:bg-white hover:border-orange-200">
+                                <div className="w-20 h-20 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-slate-100 mr-8 text-orange-600 shrink-0 shadow-sm">
+                                   <span className="text-3xl font-black leading-none">{new Date(b.date).getDate() + 1}</span>
+                                   <span className="uppercase text-xs font-black tracking-widest">{new Date(b.date).toLocaleString('es', {month: 'short'})}</span>
+                                </div>
+                                <div className="flex-grow mt-6 sm:mt-0">
+                                  <h4 className="font-black text-slate-900 text-2xl mb-1">{s?.name || 'Servicio Especial'}</h4>
+                                  <p className="text-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    {b.time} hs
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-4 mt-8 sm:mt-0">
+                                   <button 
+                                    onClick={() => handleCancelBooking(b.id)}
+                                    className="px-8 py-4 bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-95"
+                                   >
+                                     Cancelar Reserva
+                                   </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                            <p className="text-slate-400 font-bold text-xl">Sin actividad pendiente.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab: Personal */}
+                  {activeTab === 'personal' && (
+                    <StaffManager providerId={user.id} />
+                  )}
+
+                  {/* Tab: Servicios */}
+                  {activeTab === 'servicios' && (
+                    <ServiceManager providerId={user.id} />
+                  )}
+
+                  {/* Tab: Suscripción */}
+                  {activeTab === 'suscripcion' && (
+                    <div>
+                      <div className="flex justify-between items-center mb-10">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Suscripción Pro</h2>
+                        <img src="https://logodownload.org/wp-content/uploads/2019/06/mercado-pago-logo-0.png" className="h-5 opacity-40" alt="MP" />
+                      </div>
+                      <div className="bg-orange-50 border-2 border-orange-100 p-10 rounded-[2.5rem] flex flex-col lg:flex-row items-center gap-10">
+                        <div className="flex-grow text-center lg:text-left">
+                          <h4 className="font-black text-2xl text-orange-950 mb-1">Estado: Activo</h4>
+                          <p className="text-orange-800/70 font-bold text-lg">Próximo cobro: $3.99 USD • Vía Mercado Pago</p>
                         </div>
-                        <div className="flex items-center gap-4 mt-8 sm:mt-0">
-                           <button 
-                            onClick={() => handleCancelBooking(b.id)}
-                            className="px-8 py-4 bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-95"
-                           >
-                             Cancelar Reserva
-                           </button>
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={handleMPSubscribe}
+                            disabled={isMPSubscribing}
+                            className="bg-orange-600 text-white px-10 py-5 rounded-2xl font-black shadow-xl shadow-orange-600/30 hover:bg-orange-700 transition-all disabled:opacity-50 text-center"
+                          >
+                            {isMPSubscribing ? 'Conectando...' : 'Gestionar Suscripción'}
+                          </button>
                         </div>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                    <p className="text-slate-400 font-bold text-xl">Sin actividad pendiente.</p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {!isClient && (
-              <section className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-sm border border-slate-100">
-                <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Suscripción Pro</h2>
-                  <img src="https://logodownload.org/wp-content/uploads/2019/06/mercado-pago-logo-0.png" className="h-5 opacity-40" alt="MP" />
+                    </div>
+                  )}
                 </div>
-                <div className="bg-orange-50 border-2 border-orange-100 p-10 rounded-[2.5rem] flex flex-col lg:flex-row items-center gap-10">
-                  <div className="flex-grow text-center lg:text-left">
-                    <h4 className="font-black text-2xl text-orange-950 mb-1">Estado: Activo</h4>
-                    <p className="text-orange-800/70 font-bold text-lg">Próximo cobro: $3.99 USD • Vía Mercado Pago</p>
+              </div>
+            )}
+
+            {/* Vista de reservas para clientes (sin tabs) */}
+            {isClient && (
+              <section className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-sm border border-slate-100">
+                <h2 className="text-3xl font-black mb-10 flex items-center text-slate-900 tracking-tight">
+                  <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                   </div>
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={handleMPSubscribe}
-                      disabled={isMPSubscribing}
-                      className="bg-orange-600 text-white px-10 py-5 rounded-2xl font-black shadow-xl shadow-orange-600/30 hover:bg-orange-700 transition-all disabled:opacity-50 text-center"
-                    >
-                      {isMPSubscribing ? 'Conectando...' : 'Gestionar Suscripción'}
-                    </button>
-                  </div>
+                  Mis Turnos
+                </h2>
+                
+                <div className="space-y-6">
+                  {activeBookings.length > 0 ? (
+                    activeBookings.map(b => {
+                      const s = displayServices.find(srv => srv.id === b.serviceId);
+                      return (
+                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 group transition-all hover:bg-white hover:border-orange-200">
+                          <div className="w-20 h-20 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-slate-100 mr-8 text-orange-600 shrink-0 shadow-sm">
+                             <span className="text-3xl font-black leading-none">{new Date(b.date).getDate() + 1}</span>
+                             <span className="uppercase text-xs font-black tracking-widest">{new Date(b.date).toLocaleString('es', {month: 'short'})}</span>
+                          </div>
+                          <div className="flex-grow mt-6 sm:mt-0">
+                            <h4 className="font-black text-slate-900 text-2xl mb-1">{s?.name || 'Servicio Especial'}</h4>
+                            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              {b.time} hs
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4 mt-8 sm:mt-0">
+                             <button 
+                              onClick={() => handleCancelBooking(b.id)}
+                              className="px-8 py-4 bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-95"
+                             >
+                               Cancelar Reserva
+                             </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 font-bold text-xl">Sin actividad pendiente.</p>
+                    </div>
+                  )}
                 </div>
               </section>
             )}

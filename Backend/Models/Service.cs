@@ -23,6 +23,7 @@ public class Service : ITableEntity
     public bool RequiresStaffSelection { get; set; }
     public string Type { get; set; } = string.Empty;
     public int? MaxCapacity { get; set; }
+    public string? AssignedStaffIds { get; set; } // Comma-separated staff IDs
 
     public Service()
     {
