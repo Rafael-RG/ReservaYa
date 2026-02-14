@@ -40,9 +40,12 @@ if (string.IsNullOrEmpty(storageConnectionString))
     }
     else
     {
-        Console.WriteLine("❌ ERROR: AzureTableStorage connection string is not configured!");
-        Console.WriteLine("❌ Configure it in Azure App Service -> Configuration -> Connection strings");
-        throw new InvalidOperationException("AzureTableStorage connection string is required in production");
+        Console.WriteLine("❌❌❌ ERROR: AzureTableStorage connection string is NOT configured!");
+        Console.WriteLine("❌ The API will start but database operations will FAIL");
+        Console.WriteLine("❌ Go to Azure Portal -> App Service -> Configuration -> Connection strings");
+        Console.WriteLine("❌ Add: Name=AzureTableStorage, Type=Custom, Value=<your connection string>");
+        // Use a dummy value to allow startup but log the error
+        storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=NOTCONFIGURED;AccountKey=dummy;EndpointSuffix=core.windows.net";
     }
 }
 else
