@@ -27,11 +27,11 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: 📦 Restore dependencies
-      run: dotnet restore --runtime win-x64
+      run: dotnet restore
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🔨 Build
-      run: dotnet build --configuration Release --runtime win-x64 --no-restore
+      run: dotnet build --configuration Release --no-restore
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🧪 Test
@@ -40,7 +40,7 @@ jobs:
       continue-on-error: true
 
     - name: 📤 Publish
-      run: dotnet publish --configuration Release --output ./publish --no-build --self-contained true --runtime win-x64
+      run: dotnet publish --configuration Release --output ./publish --self-contained true --runtime win-x64 /p:PublishReadyToRun=true
       working-directory: ${{ env.WORKING_DIRECTORY }}
 
     - name: 🚀 Deploy to Azure App Service
