@@ -9,6 +9,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Configure lowercase URLs for consistency across platforms
+builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
 // Configure CORS
 builder.Services.AddCors(options =>
 {
