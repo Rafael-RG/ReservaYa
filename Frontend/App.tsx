@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, User, Service, Booking } from './types';
+import { UserRole, User, Service, Booking, WorkingHour } from './types';
 import { MOCK_SERVICES, DEMO_CLIENT, DEMO_PROVIDER, MOCK_PROVIDERS } from './constants';
 import { Navbar } from './components/Navbar';
 import { Assistant } from './components/Assistant';
@@ -99,8 +99,23 @@ const App: React.FC = () => {
     name: '',
     businessName: '',
     phone: '',
-    address: ''
+    address: '',
+    description: '',
+    category: '',
+    heroImage: '',
+    instagram: '',
+    themeColor: '#ea580c'
   });
+  
+  const [editingHours, setEditingHours] = useState<WorkingHour[]>([
+    { day: 'Lunes', hours: '9:00 - 18:00', closed: false },
+    { day: 'Martes', hours: '9:00 - 18:00', closed: false },
+    { day: 'Miércoles', hours: '9:00 - 18:00', closed: false },
+    { day: 'Jueves', hours: '9:00 - 18:00', closed: false },
+    { day: 'Viernes', hours: '9:00 - 18:00', closed: false },
+    { day: 'Sábado', hours: '10:00 - 14:00', closed: false },
+    { day: 'Domingo', hours: 'Cerrado', closed: true }
+  ]);
 
   // Load data from API on component mount
   useEffect(() => {
@@ -108,6 +123,44 @@ const App: React.FC = () => {
     fetchServices();
     fetchProfiles();
     fetchUsers();
+  }, []);
+
+  // Detect provider from URL on initial load
+  useEffect(() => {
+    const path = window.location.pathname;
+    const providerId = path.replace('/', '').trim();
+    
+    if (providerId && providerId !== '') {
+      // Check if it's a valid UUID (basic check)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(providerId)) {
+        console.log('🔗 Opening landing page from URL:', providerId);
+        setActiveProviderId(providerId);
+        setView('landing');
+      }
+    }
+  }, []);
+
+  // Listen to browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const providerId = path.replace('/', '').trim();
+      
+      if (providerId && providerId !== '') {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(providerId)) {
+          setActiveProviderId(providerId);
+          setView('landing');
+        }
+      } else {
+        setView('home');
+        setActiveProviderId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Log API status for debugging
@@ -139,15 +192,30 @@ const App: React.FC = () => {
           name: user.name || '',
           businessName: currentProvider.name || '',
           phone: currentProvider.phone || '',
-          address: currentProvider.address || ''
+          address: currentProvider.address || '',
+          description: currentProvider.description || '',
+          category: currentProvider.category || '',
+          heroImage: currentProvider.heroImage || '',
+          instagram: currentProvider.instagram || '',
+          themeColor: currentProvider.themeColor || '#ea580c'
         });
+        
+        // Initialize working hours if they exist
+        if (currentProvider.workingHours && currentProvider.workingHours.length > 0) {
+          setEditingHours(currentProvider.workingHours);
+        }
       } else {
         // If no provider profile exists, use user name
         setEditingProfile({
           name: user.name || '',
           businessName: '',
           phone: '',
-          address: ''
+          address: '',
+          description: '',
+          category: '',
+          heroImage: '',
+          instagram: '',
+          themeColor: '#ea580c'
         });
       }
     }
@@ -185,6 +253,8 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setUser(null);
     setView('home');
+    // Update URL to root
+    window.history.pushState({}, '', '/');
   };
 
   const handleCancelBooking = (bookingId: string) => {
@@ -267,14 +337,14 @@ const App: React.FC = () => {
               id: currentUser.id,
               name: editingProfile.businessName || currentUser.name,
               slug: currentUser.id,
-              description: 'Perfil creado desde configuración',
-              heroImage: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1600',
-              category: 'General',
-              themeColor: 'orange',
+              description: editingProfile.description || 'Perfil creado desde configuración',
+              heroImage: editingProfile.heroImage || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1600',
+              category: editingProfile.category || 'General',
+              themeColor: editingProfile.themeColor || 'orange',
               address: editingProfile.address,
               phone: editingProfile.phone,
-              instagram: '',
-              workingHoursJson: JSON.stringify([])
+              instagram: editingProfile.instagram || '',
+              workingHoursJson: JSON.stringify(editingHours)
             });
           } else {
             // Update existing profile
@@ -282,20 +352,25 @@ const App: React.FC = () => {
             if (currentProvider) {
               console.log('📝 Actualizando perfil con datos:', {
                 businessName: editingProfile.businessName,
+                description: editingProfile.description,
+                category: editingProfile.category,
+                heroImage: editingProfile.heroImage,
                 phone: editingProfile.phone,
-                address: editingProfile.address
+                address: editingProfile.address,
+                instagram: editingProfile.instagram,
+                themeColor: editingProfile.themeColor
               });
               
               await updateProfile(currentUser.id, {
                 name: editingProfile.businessName,
-                description: currentProvider.description,
-                heroImage: currentProvider.heroImage,
-                category: currentProvider.category,
-                themeColor: currentProvider.themeColor,
+                description: editingProfile.description || currentProvider.description,
+                heroImage: editingProfile.heroImage || currentProvider.heroImage,
+                category: editingProfile.category || currentProvider.category,
+                themeColor: editingProfile.themeColor || currentProvider.themeColor,
                 phone: editingProfile.phone,
                 address: editingProfile.address,
-                instagram: currentProvider.instagram,
-                workingHoursJson: currentProvider.workingHoursJson
+                instagram: editingProfile.instagram || currentProvider.instagram || '',
+                workingHoursJson: JSON.stringify(editingHours)
               });
               
               console.log('✅ Perfil actualizado exitosamente');
@@ -378,11 +453,35 @@ const App: React.FC = () => {
   const goToLanding = (id: string) => {
     setActiveProviderId(id);
     setView('landing');
+    // Update URL without page reload
+    window.history.pushState({}, '', `/${id}`);
+  };
+
+  const goToHome = () => {
+    setView('home');
+    setActiveProviderId(null);
+    setUser(null);
+    // Update URL to root
+    window.history.pushState({}, '', '/');
+  };
+
+  const copyLandingLink = (providerId: string) => {
+    const url = `${window.location.origin}/${providerId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      success('🔗 Link copiado al portapapeles');
+    }).catch(() => {
+      showError('Error al copiar el link');
+    });
   };
 
   const handleNavigate = (newView: string) => {
     setView(newView);
     window.scrollTo(0, 0);
+    // Clear URL if going to home
+    if (newView === 'home') {
+      setActiveProviderId(null);
+      window.history.pushState({}, '', '/');
+    }
   };
 
   // --- RENDERING VIEWS ---
@@ -546,12 +645,24 @@ const App: React.FC = () => {
             </p>
           </div>
           {!isClient && (
-            <button 
-              onClick={() => goToLanding(user.id)}
-              className="bg-orange-600 text-white px-10 py-4 rounded-2xl font-black shadow-2xl shadow-orange-600/20 hover:bg-orange-700 transition-all active:scale-95"
-            >
-              Ver Mi Landing Pública
-            </button>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => goToLanding(user.id)}
+                className="bg-orange-600 text-white px-10 py-4 rounded-2xl font-black shadow-2xl shadow-orange-600/20 hover:bg-orange-700 transition-all active:scale-95"
+              >
+                Ver Mi Landing Pública
+              </button>
+              <button 
+                onClick={() => copyLandingLink(user.id)}
+                className="bg-white text-orange-600 px-10 py-4 rounded-2xl font-black shadow-xl border-2 border-orange-200 hover:bg-orange-50 transition-all active:scale-95 flex items-center gap-2"
+                title="Copiar link para compartir"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copiar Link
+              </button>
+            </div>
           )}
         </header>
 
@@ -1070,23 +1181,72 @@ const App: React.FC = () => {
                           Agenda de Reservas
                         </h2>
                         
-                        {/* Barra de búsqueda */}
-                        <div className="relative flex-1 max-w-xl">
-                          <input
-                            type="text"
-                            placeholder="🔍 Buscar cliente, servicio o notas..."
-                            value={bookingFilters.search}
-                            onChange={(e) => setBookingFilters(prev => ({ ...prev, search: e.target.value }))}
-                            className="w-full pl-5 pr-12 py-3 rounded-2xl bg-white border-2 border-slate-200 focus:border-orange-500 outline-none transition-all font-bold text-sm shadow-sm hover:shadow-md"
-                          />
-                          {bookingFilters.search && (
-                            <button
-                              onClick={() => setBookingFilters(prev => ({ ...prev, search: '' }))}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center transition-all"
-                            >
-                              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                          )}
+                        {/* Barra de búsqueda y botón próxima reserva */}
+                        <div className="flex gap-3 flex-1 max-w-2xl">
+                          {/* Botón ir a próxima reserva */}
+                          <button
+                            onClick={() => {
+                              // Encontrar la próxima reserva (futuras, no canceladas, ordenadas por fecha)
+                              const now = new Date();
+                              const upcomingBookings = myBookings
+                                .filter(b => {
+                                  const bookingDate = new Date(b.date);
+                                  return bookingDate >= now && b.status !== 'CANCELLED';
+                                })
+                                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                              
+                              if (upcomingBookings.length > 0) {
+                                const nextBooking = upcomingBookings[0];
+                                const nextDate = new Date(nextBooking.date);
+                                
+                                // Actualizar fecha seleccionada
+                                setSelectedDate(nextDate);
+                                
+                                // Calcular el inicio de la semana de esa fecha
+                                const day = nextDate.getDay();
+                                const diff = nextDate.getDate() - day + (day === 0 ? -6 : 1); // Lunes
+                                const weekStart = new Date(nextDate);
+                                weekStart.setDate(diff);
+                                setCurrentWeekStart(weekStart);
+                                
+                                // Scroll suave hacia las reservas
+                                setTimeout(() => {
+                                  const element = document.getElementById('reservas-dia-seleccionado');
+                                  element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
+                                
+                                success(`📍 Mostrando próxima reserva: ${nextDate.toLocaleDateString('es')}`);
+                              } else {
+                                info('No hay reservas próximas programadas');
+                              }
+                            }}
+                            className="shrink-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-orange-600/30 hover:shadow-xl hover:shadow-orange-600/40 transition-all active:scale-95 flex items-center gap-2 text-sm"
+                            title="Ir a la próxima reserva programada"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Próxima Reserva
+                          </button>
+                          
+                          {/* Barra de búsqueda */}
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              placeholder="🔍 Buscar cliente, servicio o notas..."
+                              value={bookingFilters.search}
+                              onChange={(e) => setBookingFilters(prev => ({ ...prev, search: e.target.value }))}
+                              className="w-full pl-5 pr-12 py-3 rounded-2xl bg-white border-2 border-slate-200 focus:border-orange-500 outline-none transition-all font-bold text-sm shadow-sm hover:shadow-md"
+                            />
+                            {bookingFilters.search && (
+                              <button
+                                onClick={() => setBookingFilters(prev => ({ ...prev, search: '' }))}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center transition-all"
+                              >
+                                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -1238,7 +1398,7 @@ const App: React.FC = () => {
                       </div>
                       
                       {/* Reservas del día seleccionado */}
-                      <div className="bg-white rounded-3xl border-2 border-slate-100 overflow-hidden">
+                      <div id="reservas-dia-seleccionado" className="bg-white rounded-3xl border-2 border-slate-100 overflow-hidden">
                         <div className="max-h-[calc(100vh-500px)] overflow-y-auto p-4">
                           {(() => {
                             const dayBookings = filteredBookings
@@ -1368,9 +1528,9 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
-                        <h3 className="font-black text-slate-900 text-xl mb-6 uppercase tracking-wider">Editar Información</h3>
+                        <h3 className="font-black text-slate-900 text-xl mb-6 uppercase tracking-wider">Información Personal</h3>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-6 mb-10">
                           <div>
                             <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Tu Nombre</label>
                             <input
@@ -1381,7 +1541,12 @@ const App: React.FC = () => {
                               placeholder="Ingrese su nombre personal"
                             />
                           </div>
+                        </div>
 
+                        <h3 className="font-black text-slate-900 text-xl mb-6 uppercase tracking-wider border-t border-slate-200 pt-8">Personaliza tu Landing Page</h3>
+                        <p className="text-slate-600 mb-6 font-medium">Estos cambios se reflejarán en tu página pública que verán tus clientes.</p>
+
+                        <div className="space-y-6">
                           <div>
                             <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Nombre del Negocio</label>
                             <input
@@ -1389,8 +1554,74 @@ const App: React.FC = () => {
                               value={editingProfile.businessName}
                               onChange={(e) => setEditingProfile({ ...editingProfile, businessName: e.target.value })}
                               className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold"
-                              placeholder="Ingrese el nombre de su negocio"
+                              placeholder="Ej: Estética 19, Gimnasio PowerFit"
                             />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Descripción</label>
+                            <textarea
+                              value={editingProfile.description}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, description: e.target.value })}
+                              className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold resize-none"
+                              rows={3}
+                              placeholder="Describe tu negocio, servicios y qué te hace especial"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Categoría</label>
+                              <select
+                                value={editingProfile.category}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, category: e.target.value })}
+                                className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold"
+                              >
+                                <option value="">Seleccionar categoría</option>
+                                <option value="Belleza & Estética">Belleza & Estética</option>
+                                <option value="Salud & Bienestar">Salud & Bienestar</option>
+                                <option value="Fitness & Deportes">Fitness & Deportes</option>
+                                <option value="Gastronomía">Gastronomía</option>
+                                <option value="Educación">Educación</option>
+                                <option value="Servicios Profesionales">Servicios Profesionales</option>
+                                <option value="Hogar & Mantenimiento">Hogar & Mantenimiento</option>
+                                <option value="Entretenimiento">Entretenimiento</option>
+                                <option value="Otro">Otro</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Color del Tema</label>
+                              <input
+                                type="color"
+                                value={editingProfile.themeColor}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, themeColor: e.target.value })}
+                                className="w-full h-14 rounded-2xl border-2 border-slate-200 focus:border-orange-500 outline-none transition-all cursor-pointer"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Imagen Hero (URL)</label>
+                            <input
+                              type="url"
+                              value={editingProfile.heroImage}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, heroImage: e.target.value })}
+                              className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold"
+                              placeholder="https://ejemplo.com/mi-imagen.jpg"
+                            />
+                            {editingProfile.heroImage && (
+                              <div className="mt-3">
+                                <img 
+                                  src={editingProfile.heroImage} 
+                                  alt="Preview" 
+                                  className="w-full h-48 object-cover rounded-2xl border-2 border-slate-200"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1600';
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -1400,7 +1631,7 @@ const App: React.FC = () => {
                               value={editingProfile.phone}
                               onChange={(e) => setEditingProfile({ ...editingProfile, phone: e.target.value })}
                               className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold"
-                              placeholder="Ingrese su teléfono"
+                              placeholder="+598 99 123 456"
                             />
                           </div>
 
@@ -1410,8 +1641,19 @@ const App: React.FC = () => {
                               value={editingProfile.address}
                               onChange={(e) => setEditingProfile({ ...editingProfile, address: e.target.value })}
                               className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold resize-none"
-                              rows={3}
-                              placeholder="Ingrese su dirección"
+                              rows={2}
+                              placeholder="Calle, número, ciudad"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Instagram (opcional)</label>
+                            <input
+                              type="text"
+                              value={editingProfile.instagram}
+                              onChange={(e) => setEditingProfile({ ...editingProfile, instagram: e.target.value })}
+                              className="w-full px-6 py-4 rounded-2xl border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all font-bold"
+                              placeholder="@tunegocio"
                             />
                           </div>
 
@@ -1513,9 +1755,34 @@ const App: React.FC = () => {
     const provider = displayProviders.find(p => p.id === activeProviderId);
     if (!provider) return renderHome();
     const providerServices = displayServices.filter(s => s.providerId === provider.id);
+    const isOwner = user?.id === provider.id;
 
     return (
       <div className="min-h-screen bg-slate-50 pb-32">
+        {/* Back button */}
+        <button
+          onClick={goToHome}
+          className="fixed top-6 left-6 z-50 bg-white/90 backdrop-blur-sm text-slate-900 px-6 py-3 rounded-2xl font-black shadow-xl hover:bg-white transition-all active:scale-95 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Volver
+        </button>
+
+        {/* Share button if owner */}
+        {isOwner && (
+          <button
+            onClick={() => copyLandingLink(provider.id)}
+            className="fixed top-6 right-6 z-50 bg-orange-600 text-white px-6 py-3 rounded-2xl font-black shadow-xl hover:bg-orange-700 transition-all active:scale-95 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Compartir
+          </button>
+        )}
+        
         <div className="relative h-[75vh] overflow-hidden">
           <img src={provider.heroImage} className="w-full h-full object-cover" alt={provider.name} />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent"></div>
