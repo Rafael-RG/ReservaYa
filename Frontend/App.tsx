@@ -13,6 +13,7 @@ import { useToast } from './hooks/useToast';
 import { ToastContainer } from './components/Toast';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import api from './services/apiService';
+import Login from './components/Login';
 
 const App: React.FC = () => {
   const { toasts, removeToast, success, error: showError, info } = useToast();
@@ -308,6 +309,95 @@ const App: React.FC = () => {
     window.history.pushState({}, '', '/');
   };
 
+  const handleLoginFromAuth = async (email: string, password: string, role: UserRole) => {
+    try {
+      // Try to get user by email
+      let dbUser = await api.users.getByEmail(email);
+      
+      if (!dbUser) {
+        showError('Usuario no encontrado. Por favor regístrate primero.');
+        return;
+      }
+      
+      // Verify role matches
+      if (dbUser.role !== role) {
+        showError(`Este usuario está registrado como ${dbUser.role === UserRole.CLIENT ? 'Cliente' : 'Proveedor'}`);
+        return;
+      }
+      
+      console.log('✅ Usuario autenticado:', dbUser);
+      setUser(dbUser);
+      
+      // Load user-specific data
+      if (role === UserRole.CLIENT) {
+        fetchBookingsByClient(dbUser.id);
+      } else {
+        fetchBookingsByProvider(dbUser.id);
+        fetchStaffByProvider(dbUser.id);
+      }
+      
+      setView('dashboard');
+      success('¡Bienvenido! Sesión iniciada correctamente');
+    } catch (err) {
+      console.error('❌ Error en login:', err);
+      showError('Error al iniciar sesión. Por favor intenta nuevamente.');
+    }
+  };
+
+  const handleRegisterFromAuth = async (name: string, email: string, password: string, role: UserRole) => {
+    try {
+      // Check if user already exists
+      const existingUser = await api.users.getByEmail(email);
+      
+      if (existingUser) {
+        showError('Este email ya está registrado. Por favor inicia sesión.');
+        return;
+      }
+      
+      // Create new user
+      const newUser = await createUser({
+        email,
+        name,
+        role,
+        avatar: role === UserRole.CLIENT ? 
+          'https://api.dicebear.com/7.x/avataaars/svg?seed=' + encodeURIComponent(name) :
+          'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(name),
+        phone: null
+      });
+      
+      console.log('✅ Usuario registrado:', newUser);
+      setUser(newUser);
+      
+      // If provider, create initial profile
+      if (role === UserRole.PROVIDER && newUser.id) {
+        try {
+          const slug = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+          await createProfile({
+            id: newUser.id,
+            slug,
+            name,
+            description: '',
+            heroImage: '',
+            category: '',
+            themeColor: '#ea580c',
+            address: '',
+            phone: '',
+            instagram: '',
+            workingHoursJson: ''
+          });
+        } catch (err) {
+          console.warn('⚠️ No se pudo crear el perfil inicial:', err);
+        }
+      }
+      
+      setView('dashboard');
+      success('¡Cuenta creada exitosamente! Bienvenido a ReservaYa');
+    } catch (err) {
+      console.error('❌ Error en registro:', err);
+      showError('Error al crear la cuenta. Por favor intenta nuevamente.');
+    }
+  };
+
   const handleCancelBooking = (bookingId: string) => {
     setConfirmCancelBooking({ show: true, bookingId });
   };
@@ -459,7 +549,7 @@ const App: React.FC = () => {
   const startBookingFlow = (service: Service) => {
     if (!user) {
       info('Debes iniciar sesión como cliente para hacer una reserva');
-      setView('login-client');
+      setView('login-animado');
       return;
     }
     setSelectedServiceForBooking(service);
@@ -562,6 +652,9 @@ const App: React.FC = () => {
               Ver Demo Real
             </button>
           </div>
+          <p className="text-orange-200 text-sm mt-8">
+            ¿Ya tienes cuenta? <button onClick={() => handleNavigate('login-animado')} className="text-white font-bold underline hover:text-orange-300 transition-colors">Inicia sesión aquí</button>
+          </p>
         </div>
       </div>
 
@@ -595,6 +688,9 @@ const App: React.FC = () => {
                >
                  Activar Mi Negocio Pro
                </button>
+               <p className="text-slate-400 text-sm mt-6">
+                 ¿Ya tienes una cuenta? <button onClick={() => handleNavigate('login-animado')} className="text-orange-600 font-bold hover:underline transition-colors">Inicia sesión</button>
+               </p>
              </div>
           </div>
         </div>
@@ -2248,54 +2344,18 @@ const App: React.FC = () => {
     );
   };
 
-  const renderLogin = (role: UserRole) => (
-    <div className="flex items-center justify-center min-h-[calc(100vh-64px)] p-6 bg-slate-50">
-      <div className="max-w-md w-full bg-white rounded-[4rem] shadow-2xl p-10 md:p-16 border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-orange-600"></div>
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Iniciar Sesión</h2>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">{role === UserRole.CLIENT ? 'Acceso Cliente' : 'Acceso Prestador'}</p>
-        </div>
-        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-           <input type="email" placeholder="Email Registrado" className="w-full px-8 py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-orange-500 outline-none transition-all font-bold text-xl" />
-           <input type="password" placeholder="Contraseña" className="w-full px-8 py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-orange-500 outline-none transition-all font-bold text-xl" />
-           <button onClick={role === UserRole.CLIENT ? loginAsClient : loginAsProvider} className="w-full bg-orange-600 text-white py-6 rounded-2xl font-black text-xl hover:bg-orange-700 transition-all shadow-xl active:scale-95">Entrar (Modo Demo)</button>
-           <p className="text-center text-sm text-slate-500 font-medium pt-8">¿Nuevo en ReservaYa? <button onClick={() => setView(role === UserRole.CLIENT ? 'signup-client' : 'signup-provider')} className="text-orange-600 font-black hover:underline">Crea tu cuenta aquí</button></p>
-        </form>
-      </div>
-    </div>
-  );
-
-  const renderSignUp = (role: UserRole) => (
-    <div className="flex items-center justify-center min-h-[calc(100vh-64px)] p-6 bg-slate-50">
-      <div className="max-w-md w-full bg-white rounded-[4rem] shadow-2xl p-10 md:p-16 border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-orange-600"></div>
-        <div className="text-center mb-10">
-          <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Nueva Cuenta</h2>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">{role === UserRole.CLIENT ? 'Cliente Individual' : 'Prestador de Servicio Pro'}</p>
-        </div>
-        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-           <input type="text" placeholder="Nombre completo o Negocio" className="w-full px-8 py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-orange-500 outline-none transition-all font-bold text-xl" />
-           <input type="email" placeholder="Correo electrónico" className="w-full px-8 py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-orange-500 outline-none transition-all font-bold text-xl" />
-           {role === UserRole.PROVIDER && (
-             <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100">
-               <div className="flex justify-between items-center mb-2">
-                 <p className="text-xs font-black text-orange-600 uppercase tracking-widest">Plan Pro Anual</p>
-                 <img src="https://logodownload.org/wp-content/uploads/2019/06/mercado-pago-logo-0.png" className="h-3" alt="MP" />
-               </div>
-               <p className="text-xs text-orange-900/60 font-medium leading-relaxed">Suscripción de $3.99/mes. Al registrarse, se activará el flujo de cobro automático de Mercado Pago.</p>
-             </div>
-           )}
-           <button onClick={role === UserRole.CLIENT ? loginAsClient : loginAsProvider} className="w-full bg-orange-600 text-white py-6 rounded-2xl font-black text-xl hover:bg-orange-700 transition-all shadow-xl active:scale-95">
-             {role === UserRole.PROVIDER ? 'Comenzar Suscripción Pro' : 'Crear mi Cuenta'}
-           </button>
-           <p className="text-center text-sm text-slate-500 font-medium pt-8">¿Ya tienes cuenta? <button onClick={() => setView(role === UserRole.CLIENT ? 'login-client' : 'login-provider')} className="text-orange-600 font-black hover:underline">Inicia Sesión</button></p>
-        </form>
-      </div>
-    </div>
-  );
-
   const currentUserProvider = user?.role === 'PROVIDER' ? displayProviders.find(p => p.id === user.id) : undefined;
+
+  // Render login screen separately (fullscreen, no navbar)
+  if (view === 'login-animado') {
+    return (
+      <Login 
+        onLogin={handleLoginFromAuth}
+        onRegister={handleRegisterFromAuth}
+        onBack={() => setView('home')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 selection:bg-orange-100 selection:text-orange-900">
@@ -2305,10 +2365,6 @@ const App: React.FC = () => {
         {view === 'home' && renderHome()}
         {view === 'landing' && renderLanding()}
         {view === 'dashboard' && renderDashboard()}
-        {view === 'login-client' && renderLogin(UserRole.CLIENT)}
-        {view === 'login-provider' && renderLogin(UserRole.PROVIDER)}
-        {view === 'signup-client' && renderSignUp(UserRole.CLIENT)}
-        {view === 'signup-provider' && renderSignUp(UserRole.PROVIDER)}
       </main>
 
       {isBookingModalOpen && selectedServiceForBooking && (

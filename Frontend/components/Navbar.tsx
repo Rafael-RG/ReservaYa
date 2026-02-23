@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, providerProfile, onLogout,
           </div>
 
           <div className="hidden md:flex items-center space-x-4">
-            {user ? (
+            {user && (
               <>
                 <button 
                   onClick={() => onNavigate('dashboard')}
@@ -49,21 +49,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, providerProfile, onLogout,
                     Salir
                   </button>
                 </div>
-              </>
-            ) : (
-              <>
-                <button 
-                  onClick={() => onNavigate('login-client')}
-                  className="text-slate-600 hover:text-orange-600 px-3 py-2 text-sm font-bold transition-colors"
-                >
-                  Soy Cliente
-                </button>
-                <button 
-                  onClick={() => onNavigate('login-provider')}
-                  className="bg-orange-600 text-white px-6 py-2.5 rounded-2xl text-sm font-black hover:bg-orange-700 transition shadow-lg shadow-orange-600/20 active:scale-95"
-                >
-                  Soy Prestador
-                </button>
               </>
             )}
           </div>
