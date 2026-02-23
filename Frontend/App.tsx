@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<string>('home'); 
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'reservas' | 'metricas' | 'personal' | 'servicios' | 'horarios' | 'suscripcion' | 'configuracion'>('reservas');
+  const [activeClientTab, setActiveClientTab] = useState<'mis-reservas' | 'explorar' | 'configuracion'>('mis-reservas');
   
   // Confirmation dialogs
   const [confirmCancelBooking, setConfirmCancelBooking] = useState<{ show: boolean; bookingId: string | null }>({ show: false, bookingId: null });
@@ -77,6 +78,12 @@ const App: React.FC = () => {
     staffId: 'ALL' as string
   });
   const [showAllBookings, setShowAllBookings] = useState(false);
+  
+  // Client filters state
+  const [clientFilters, setClientFilters] = useState({
+    status: 'ALL' as 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED',
+    showPast: false
+  });
   
   // Metrics filters state
   const today = new Date();
@@ -221,32 +228,76 @@ const App: React.FC = () => {
     }
   }, [user, profiles]);
 
-  const loginAsClient = () => {
-    setUser(DEMO_CLIENT);
-    fetchBookingsByClient(DEMO_CLIENT.id);
+  const loginAsClient = async () => {
+    try {
+      // Try to get user by email first
+      let dbUser = await api.users.getByEmail(DEMO_CLIENT.email);
+      
+      if (!dbUser) {
+        console.log('⚠️ Cliente no encontrado, creando nuevo usuario en BD...');
+        // Create user if doesn't exist
+        dbUser = await createUser({
+          email: DEMO_CLIENT.email,
+          name: DEMO_CLIENT.name,
+          role: DEMO_CLIENT.role,
+          avatar: DEMO_CLIENT.avatar,
+          phone: '+54 11 1234-5678'
+        });
+        console.log('✅ Cliente creado en BD:', dbUser);
+      } else {
+        console.log('✅ Cliente cargado desde BD:', dbUser);
+      }
+      
+      setUser(dbUser);
+      fetchBookingsByClient(dbUser.id);
+    } catch (err) {
+      console.error('❌ Error en login cliente:', err);
+      // Fallback to demo user
+      setUser(DEMO_CLIENT);
+      fetchBookingsByClient(DEMO_CLIENT.id);
+    }
     setView('dashboard');
   };
 
   const loginAsProvider = async () => {
-    // Try to load user from database first
     try {
+      // Try to get user by email first
+      let dbUser = await api.users.getByEmail(DEMO_PROVIDER.email);
+      
+      if (!dbUser) {
+        console.log('⚠️ Proveedor no encontrado, creando nuevo usuario en BD...');
+        // Create user if doesn't exist
+        dbUser = await createUser({
+          email: DEMO_PROVIDER.email,
+          name: 'Mi Negocio Demo',
+          role: DEMO_PROVIDER.role,
+          avatar: DEMO_PROVIDER.avatar,
+          phone: null
+        });
+        console.log('✅ Proveedor creado en BD:', dbUser);
+      } else {
+        console.log('✅ Proveedor cargado desde BD:', dbUser);
+      }
+      
+      setUser(dbUser);
+      fetchBookingsByProvider(dbUser.id);
+      fetchStaffByProvider(dbUser.id);
+    } catch (err) {
+      console.error('❌ Error en login proveedor:', err);
+      // Fallback - try to find by ID
       const dbUsers = await api.users.getAll();
       const dbUser = dbUsers.find(u => u.id === DEMO_PROVIDER.id);
       
       if (dbUser) {
-        console.log('✅ Usuario cargado desde la base de datos:', dbUser);
         setUser(dbUser);
+        fetchBookingsByProvider(dbUser.id);
+        fetchStaffByProvider(dbUser.id);
       } else {
-        console.log('⚠️ Usuario no encontrado en BD, usando demo user');
         setUser(DEMO_PROVIDER);
+        fetchBookingsByProvider(DEMO_PROVIDER.id);
+        fetchStaffByProvider(DEMO_PROVIDER.id);
       }
-    } catch (err) {
-      console.log('⚠️ Error cargando usuario, usando demo user:', err);
-      setUser(DEMO_PROVIDER);
     }
-    
-    fetchBookingsByProvider(DEMO_PROVIDER.id);
-    fetchStaffByProvider(DEMO_PROVIDER.id);
     setView('dashboard');
   };
 
@@ -639,7 +690,7 @@ const App: React.FC = () => {
         <header className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div>
             <span className="text-orange-600 font-black text-sm uppercase tracking-[0.3em] mb-3 block">Panel de Gestión</span>
-            <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">{isClient ? user.name : currentUserProvider?.name || user.name}</h1>
+            <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">{user.name}</h1>
             <p className="text-slate-500 font-medium text-xl mt-3">
               {isClient ? 'Controle sus próximas citas agendadas.' : 'Administre sus servicios y suscriptores hoy.'}
             </p>
@@ -1523,7 +1574,7 @@ const App: React.FC = () => {
                         <div className="flex items-center mb-10">
                           <img src={user.avatar} className="w-24 h-24 rounded-[2rem] mr-6 border-4 border-white shadow-xl" alt="avatar" />
                           <div>
-                            <p className="font-black text-slate-900 text-3xl leading-none mb-2">{currentUserProvider?.name || user.name}</p>
+                            <p className="font-black text-slate-900 text-3xl leading-none mb-2">{user.name}</p>
                             <p className="text-xs font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-4 py-2 rounded-full inline-block">{user.role}</p>
                           </div>
                         </div>
@@ -1697,52 +1748,347 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Vista de reservas para clientes (sin tabs) */}
+            {/* Vista de reservas para clientes (con tabs) */}
             {isClient && (
               <section className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-sm border border-slate-100">
-                <h2 className="text-3xl font-black mb-10 flex items-center text-slate-900 tracking-tight">
-                  <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                  </div>
-                  Mis Turnos
-                </h2>
-                
-                <div className="space-y-6">
-                  {activeBookings.length > 0 ? (
-                    activeBookings.map(b => {
-                      const s = displayServices.find(srv => srv.id === b.serviceId);
-                      return (
-                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 group transition-all hover:bg-white hover:border-orange-200">
-                          <div className="w-20 h-20 bg-white rounded-3xl flex flex-col items-center justify-center border-2 border-slate-100 mr-8 text-orange-600 shrink-0 shadow-sm">
-                             <span className="text-3xl font-black leading-none">{new Date(b.date).getDate() + 1}</span>
-                             <span className="uppercase text-xs font-black tracking-widest">{new Date(b.date).toLocaleString('es', {month: 'short'})}</span>
-                          </div>
-                          <div className="flex-grow mt-6 sm:mt-0">
-                            <h4 className="font-black text-slate-900 text-2xl mb-1">{s?.name || 'Servicio Especial'}</h4>
-                            <p className="text-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                              {b.time} hs
-                            </p>
-                          </div>
-                          {b.status !== 'CANCELLED' && (
-                            <div className="flex items-center gap-4 mt-8 sm:mt-0">
-                               <button 
-                                onClick={() => handleCancelBooking(b.id)}
-                                className="px-8 py-4 bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-95"
-                               >
-                                 Cancelar Reserva
-                               </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                      <p className="text-slate-400 font-bold text-xl">Sin actividad pendiente.</p>
-                    </div>
-                  )}
+                {/* Tabs header */}
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start mb-12 pb-8 border-b-2 border-slate-100">
+                  <button 
+                    onClick={() => setActiveClientTab('mis-reservas')}
+                    className={`px-8 py-4 rounded-[1.5rem] text-sm font-black uppercase tracking-[0.2em] transition-all ${
+                      activeClientTab === 'mis-reservas' 
+                        ? 'bg-orange-100 text-orange-600 shadow-inner' 
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    }`}
+                  >
+                    Mis Reservas
+                  </button>
+                  <button 
+                    onClick={() => setActiveClientTab('explorar')}
+                    className={`px-8 py-4 rounded-[1.5rem] text-sm font-black uppercase tracking-[0.2em] transition-all ${
+                      activeClientTab === 'explorar' 
+                        ? 'bg-orange-100 text-orange-600 shadow-inner' 
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    }`}
+                  >
+                    Explorar Servicios
+                  </button>
+                  <button 
+                    onClick={() => setActiveClientTab('configuracion')}
+                    className={`px-8 py-4 rounded-[1.5rem] text-sm font-black uppercase tracking-[0.2em] transition-all ${
+                      activeClientTab === 'configuracion' 
+                        ? 'bg-orange-100 text-orange-600 shadow-inner' 
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    }`}
+                  >
+                    Configuración
+                  </button>
                 </div>
+
+                {/* Tab: Mis Reservas */}
+                {activeClientTab === 'mis-reservas' && (
+                  <div>
+                    <h2 className="text-3xl font-black mb-8 flex items-center text-slate-900 tracking-tight">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                      </div>
+                      Mis Turnos
+                    </h2>
+
+                    {/* Filtros */}
+                    <div className="flex flex-col sm:flex-row gap-4 mb-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                      <div className="flex-1">
+                        <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-3">Estado</label>
+                        <select
+                          value={clientFilters.status}
+                          onChange={(e) => setClientFilters({...clientFilters, status: e.target.value as any})}
+                          className="w-full px-6 py-4 bg-white text-slate-900 font-bold rounded-[1.5rem] border-2 border-slate-100 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 transition-all"
+                        >
+                          <option value="ALL">Todas</option>
+                          <option value="PENDING">Pendientes</option>
+                          <option value="CONFIRMED">Confirmadas</option>
+                          <option value="CANCELLED">Canceladas</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => setClientFilters({...clientFilters, showPast: !clientFilters.showPast})}
+                          className={`px-8 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all ${
+                            clientFilters.showPast
+                              ? 'bg-orange-100 text-orange-600 border-2 border-orange-200'
+                              : 'bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {clientFilters.showPast ? '✓ Incluir pasadas' : 'Solo futuras'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lista de reservas */}
+                    <div className="space-y-6">
+                      {(() => {
+                        const now = new Date();
+                        let filtered = myBookings;
+
+                        // Filtrar por estado
+                        if (clientFilters.status !== 'ALL') {
+                          filtered = filtered.filter(b => b.status === clientFilters.status);
+                        }
+
+                        // Filtrar por tiempo (futuras/pasadas)
+                        if (!clientFilters.showPast) {
+                          filtered = filtered.filter(b => new Date(b.date) >= now);
+                        }
+
+                        // Ordenar por fecha (próximas primero)
+                        filtered = filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                              <p className="text-slate-400 font-bold text-xl">No hay reservas con estos filtros.</p>
+                            </div>
+                          );
+                        }
+
+                        return filtered.map(b => {
+                          const s = displayServices.find(srv => srv.id === b.serviceId);
+                          const provider = displayProviders.find(p => p.id === b.providerId);
+                          const bookingDate = new Date(b.date);
+                          const isPast = bookingDate < now;
+
+                          return (
+                            <div key={b.id} className={`flex flex-col sm:flex-row sm:items-center p-8 rounded-[2.5rem] border transition-all ${
+                              isPast 
+                                ? 'bg-slate-50/50 border-slate-100 opacity-60' 
+                                : 'bg-slate-50 border-slate-100 group hover:bg-white hover:border-orange-200'
+                            }`}>
+                              <div className={`w-20 h-20 bg-white rounded-3xl flex flex-col items-center justify-center border-2 mr-8 shrink-0 shadow-sm ${
+                                b.status === 'CANCELLED' ? 'border-slate-200 text-slate-400' :
+                                isPast ? 'border-slate-200 text-slate-400' :
+                                'border-slate-100 text-orange-600'
+                              }`}>
+                                <span className="text-3xl font-black leading-none">{bookingDate.getDate()}</span>
+                                <span className="uppercase text-xs font-black tracking-widest">{bookingDate.toLocaleString('es', {month: 'short'})}</span>
+                              </div>
+                              <div className="flex-grow mt-6 sm:mt-0">
+                                <h4 className="font-black text-slate-900 text-2xl mb-1">{s?.name || 'Servicio Especial'}</h4>
+                                <p className="text-sm text-slate-500 font-bold mb-2">{provider?.name || 'Proveedor'}</p>
+                                <div className="flex flex-wrap gap-4 items-center">
+                                  <p className="text-sm text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    {b.time} hs
+                                  </p>
+                                  {b.status === 'CANCELLED' && (
+                                    <span className="px-4 py-2 bg-red-100 text-red-600 rounded-full text-xs font-black uppercase tracking-widest">
+                                      Cancelada
+                                    </span>
+                                  )}
+                                  {b.status === 'CONFIRMED' && (
+                                    <span className="px-4 py-2 bg-green-100 text-green-600 rounded-full text-xs font-black uppercase tracking-widest">
+                                      Confirmada
+                                    </span>
+                                  )}
+                                  {b.status === 'PENDING' && !isPast && (
+                                    <span className="px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-xs font-black uppercase tracking-widest">
+                                      Pendiente
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {b.status !== 'CANCELLED' && !isPast && (
+                                <div className="flex items-center gap-4 mt-8 sm:mt-0">
+                                  <button 
+                                    onClick={() => handleCancelBooking(b.id)}
+                                    className="px-8 py-4 bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 rounded-[1.5rem] text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-95"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Explorar */}
+                {activeClientTab === 'explorar' && (
+                  <div>
+                    <h2 className="text-3xl font-black mb-8 flex items-center text-slate-900 tracking-tight">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                      </div>
+                      Explorar Servicios
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayProviders.map(provider => {
+                        const providerServices = displayServices.filter(s => s.providerId === provider.id);
+                        return (
+                          <div key={provider.id} className="bg-white border-2 border-slate-100 rounded-[2.5rem] overflow-hidden group hover:border-orange-200 transition-all hover:shadow-lg">
+                            {/* Hero image */}
+                            {provider.heroImage && (
+                              <div className="w-full h-48 bg-gradient-to-br from-orange-50 to-orange-100 overflow-hidden">
+                                <img 
+                                  src={provider.heroImage} 
+                                  alt={provider.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              </div>
+                            )}
+                            {!provider.heroImage && (
+                              <div className="w-full h-48 bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+                                <svg className="w-20 h-20 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                              </div>
+                            )}
+
+                            {/* Content */}
+                            <div className="p-6">
+                              <h3 className="font-black text-2xl text-slate-900 mb-2">{provider.name}</h3>
+                              {provider.category && (
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-3">{provider.category}</p>
+                              )}
+                              {provider.description && (
+                                <p className="text-sm text-slate-600 font-medium mb-4 line-clamp-2">{provider.description}</p>
+                              )}
+
+                              {/* Stats */}
+                              <div className="flex items-center gap-4 mb-4 text-xs font-bold text-slate-500">
+                                <span className="flex items-center gap-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                  {providerServices.length} {providerServices.length === 1 ? 'servicio' : 'servicios'}
+                                </span>
+                              </div>
+
+                              {/* Button */}
+                              <button
+                                onClick={() => goToLanding(provider.id)}
+                                className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-[1.5rem] text-sm font-black uppercase tracking-[0.2em] transition-all hover:shadow-lg hover:scale-[1.02] active:scale-95"
+                              >
+                                Ver Servicios
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {displayProviders.length === 0 && (
+                      <div className="text-center py-24 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                        <p className="text-slate-400 font-bold text-xl">No hay proveedores disponibles.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tab: Configuración */}
+                {activeClientTab === 'configuracion' && (
+                  <div>
+                    <h2 className="text-3xl font-black mb-8 flex items-center text-slate-900 tracking-tight">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mr-5 shadow-inner">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                      </div>
+                      Mi Configuración
+                    </h2>
+
+                    {/* Perfil del cliente */}
+                    <div className="bg-slate-50 rounded-[2.5rem] p-10 mb-8 border border-slate-100">
+                      <div className="flex items-center mb-10">
+                        <img src={user.avatar} className="w-24 h-24 rounded-[2rem] mr-6 border-4 border-white shadow-xl" alt="avatar" />
+                        <div>
+                          <p className="font-black text-slate-900 text-3xl leading-none mb-2">{user.name}</p>
+                          <p className="text-xs font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-4 py-2 rounded-full inline-block">{user.role}</p>
+                        </div>
+                      </div>
+
+                      <h3 className="font-black text-slate-900 text-xl mb-6 uppercase tracking-wider">Información Personal</h3>
+                      
+                      <div className="space-y-6 mb-10">
+                        <div>
+                          <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Nombre</label>
+                          <input
+                            type="text"
+                            value={user.name}
+                            onChange={(e) => setUser({ ...user, name: e.target.value })}
+                            className="w-full px-6 py-4 bg-white text-slate-900 font-bold rounded-[1.5rem] border-2 border-slate-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 transition-all"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Email</label>
+                          <input
+                            type="email"
+                            value={user.email}
+                            disabled
+                            className="w-full px-6 py-4 bg-slate-100 text-slate-500 font-bold rounded-[1.5rem] border-2 border-slate-200 cursor-not-allowed"
+                          />
+                          <p className="text-xs text-slate-500 mt-2 ml-2">El email no se puede modificar</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Teléfono</label>
+                          <input
+                            type="tel"
+                            value={user.phone || ''}
+                            onChange={(e) => setUser({ ...user, phone: e.target.value })}
+                            placeholder="+54 11 1234-5678"
+                            className="w-full px-6 py-4 bg-white text-slate-900 font-bold rounded-[1.5rem] border-2 border-slate-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Foto de Perfil (URL)</label>
+                          <input
+                            type="url"
+                            value={user.avatar}
+                            onChange={(e) => setUser({ ...user, avatar: e.target.value })}
+                            placeholder="https://ejemplo.com/mi-foto.jpg"
+                            className="w-full px-6 py-4 bg-white text-slate-900 font-bold rounded-[1.5rem] border-2 border-slate-200 focus:border-orange-300 focus:ring-4 focus:ring-orange-100 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          setIsSavingProfile(true);
+                          try {
+                            await updateUser(user.id, user);
+                            success('✅ Perfil actualizado correctamente');
+                          } catch (err) {
+                            showError('❌ Error al actualizar el perfil');
+                          } finally {
+                            setIsSavingProfile(false);
+                          }
+                        }}
+                        disabled={isSavingProfile}
+                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-10 py-5 rounded-[1.8rem] font-black text-xl hover:shadow-2xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSavingProfile ? '⏳ Guardando...' : '💾 Guardar Cambios'}
+                      </button>
+                    </div>
+
+                    {/* Sección peligrosa */}
+                    <div className="bg-red-50 border-2 border-red-200 rounded-[2.5rem] p-10">
+                      <h3 className="font-black text-red-900 text-xl mb-6 uppercase tracking-wider flex items-center gap-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Zona de Peligro
+                      </h3>
+                      <p className="text-red-700 font-bold mb-6">Las siguientes acciones son permanentes y no se pueden deshacer.</p>
+                      <button
+                        onClick={() => setConfirmDeleteAccount(true)}
+                        className="bg-red-600 text-white px-10 py-4 rounded-[1.5rem] font-black hover:bg-red-700 transition-all active:scale-95 flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 bg-red-700 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </div>
+                        Cerrar Cuenta Definitivamente
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
             )}
           </div>

@@ -109,7 +109,8 @@ public class UsersController : ControllerBase
 
             var user = new User(request.Email, request.Name, userRole)
             {
-                Avatar = request.Avatar
+                Avatar = request.Avatar,
+                Phone = request.Phone
             };
 
             var createdUser = await _userService.CreateUserAsync(user);
@@ -151,6 +152,10 @@ public class UsersController : ControllerBase
             {
                 existingUser.Avatar = request.Avatar;
             }
+            if (request.Phone != null)
+            {
+                existingUser.Phone = request.Phone;
+            }
 
             var updatedUser = await _userService.UpdateUserAsync(existingUser);
             return Ok(updatedUser);
@@ -183,6 +188,6 @@ public class UsersController : ControllerBase
     }
 }
 
-public record CreateUserRequest(string Email, string Name, string Role, string? Avatar);
+public record CreateUserRequest(string Email, string Name, string Role, string? Avatar, string? Phone);
 
-public record UpdateUserRequest(string Id, string Email, string Name, string Role, string? Avatar);
+public record UpdateUserRequest(string Id, string Email, string Name, string Role, string? Avatar, string? Phone);

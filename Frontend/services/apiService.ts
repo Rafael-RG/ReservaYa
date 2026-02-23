@@ -49,13 +49,13 @@ export const usersApi = {
   getByRole: (role: UserRole) => 
     apiCall<User[]>(`/users/by-role/${role}`),
   
-  create: (data: { email: string; name: string; role: string; avatar?: string }) =>
+  create: (data: { email: string; name: string; role: string; avatar?: string; phone?: string | null }) =>
     apiCall<User>('/users', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  update: (id: string, data: { id: string; email: string; name: string; role: string; avatar?: string }) =>
+  update: (id: string, data: { id: string; email: string; name: string; role: string; avatar?: string; phone?: string | null }) =>
     apiCall<User>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

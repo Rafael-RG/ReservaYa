@@ -42,6 +42,7 @@ export const useUsers = () => {
     name: string;
     role: string;
     avatar?: string;
+    phone?: string | null;
   }) => {
     setLoading(true);
     setError(null);

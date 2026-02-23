@@ -100,9 +100,9 @@ export const MOCK_SERVICES: Service[] = [
 ];
 
 export const DEMO_CLIENT = {
-  id: 'c1',
+  id: '65fa7ce6-0058-4de6-ac19-41713e33ab1a',
   email: 'cliente@demo.com',
-  name: 'Juan Pérez',
+  name: 'Juan Perez',
   role: 'CLIENT' as any,
   avatar: 'https://i.pravatar.cc/150?u=c1'
 };
